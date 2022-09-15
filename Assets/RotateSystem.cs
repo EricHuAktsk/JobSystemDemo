@@ -5,40 +5,32 @@ using Unity.Burst;
 using Unity.Collections;
 using UnityEngine.Jobs;
 
-[BurstCompile]
-public struct RotateJob : IJobParallelForTransform
-{
-    public NativeArray<Quaternion> Rotations;
-    public NativeArray<float> Offsets;
-    public float DeltaTime;
-    public float Speed;
-    public void Execute(int index, TransformAccess transform)
-    {
-        var offsetRot = Quaternion.Euler(0, Offsets[index], 0);
-        var rot = Rotations[index] * Quaternion.Euler(0, DeltaTime * Speed, 0);
 
-        transform.rotation = rot * offsetRot;
-        Rotations[index] = rot;
+//incomplete job, complete its logic!.
+[BurstCompile]
+public struct RotateJob : IJobParallelFor
+{
+    public void Execute(int index)
+    {
     }
 }
 
 
 public class RotateSystem : MonoBehaviour
 {
+    public bool UseJob = false;
     public int Size;
+
     [Range(0, 360f)]
     public float Speed = 15f;
     private NativeArray<Quaternion> m_rotations;
-    private NativeArray<float> m_timeOffsets;
-    private Transform[] m_cubes;
-    private TransformAccessArray m_transformAccessArray;
     private JobHandle m_jobHandle;
+    private Transform[] m_cubes;
 
     void Start()
     {
         m_cubes = new Transform[Size * Size];
         m_rotations = new NativeArray<Quaternion>(m_cubes.Length, Allocator.Persistent);
-        m_timeOffsets = new NativeArray<float>(m_cubes.Length, Allocator.Persistent);
         for (int i = 0; i < Size; i++)
         {
             for (int j = 0; j < Size; j++)
@@ -48,34 +40,52 @@ public class RotateSystem : MonoBehaviour
                 m_cubes[index].position = new Vector3(i * 1.1f, 0, j * 1.1f);
                 m_cubes[index].localScale = Vector3.one * 0.5f;
                 m_rotations[index] = m_cubes[index].rotation;
-                m_timeOffsets[index] = index;
             }
         }
-        m_transformAccessArray = new TransformAccessArray(m_cubes);
     }
 
     void OnDestroy()
     {
-        m_transformAccessArray.Dispose();
-        m_timeOffsets.Dispose();
         m_rotations.Dispose();
     }
 
     void Update()
     {
-        var rotJob = new RotateJob
+        if (UseJob)
         {
-            Rotations = m_rotations,
-            Offsets = m_timeOffsets,
-            DeltaTime = Time.deltaTime,
-            Speed = Speed,
-        };
-        m_jobHandle = rotJob.Schedule(m_transformAccessArray, m_jobHandle);
+            //incomplete job, complete it's logic!.
+            var rotJob = new RotateJob
+            {
+
+            };
+            m_jobHandle = rotJob.Schedule(m_cubes.Length, 1, m_jobHandle);
+        }
+        else
+        {
+            for (int i = 0; i < m_cubes.Length; i++)
+            {
+                var newRot = m_cubes[i].rotation * Quaternion.Euler(0, Time.deltaTime * Speed * 0.2f, 0);
+                m_cubes[i].rotation = newRot;
+            }
+        }
+
+
+
     }
 
     void LateUpdate()
     {
+        //mainthread sync point, you can read native array data now.
         m_jobHandle.Complete();
+        if (UseJob)
+        {
+            for (int i = 0; i < m_cubes.Length; i++)
+            {
+                m_cubes[i].rotation = m_rotations[i];
+            }
+        }
+
+
     }
 
 }

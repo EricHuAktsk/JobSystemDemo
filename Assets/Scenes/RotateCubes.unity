@@ -134,12 +134,12 @@ GameObject:
   - component: {fileID: 409630997}
   - component: {fileID: 409630996}
   m_Layer: 0
-  m_Name: RotateAndOffset
+  m_Name: RotateCubes
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &409630996
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -184,7 +184,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &614694214
 MonoBehaviour:
   m_ObjectHideFlags: 0
