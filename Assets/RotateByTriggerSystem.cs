@@ -7,21 +7,15 @@ using UnityEngine.Jobs;
 using System.Linq;
 
 [BurstCompile]
-public struct RotateOnceJob : IJobParallelForTransform
+public struct RotateOnceJob : IJobFor
 {
     public NativeArray<Quaternion> Rotations;
-    public NativeArray<float> Progress;
     public float DeltaTime;
     public float Speed;
-    public void Execute(int index, TransformAccess transform)
+    public void Execute(int index)
     {
-        if (Progress[index] < 1f)
-        {
-            var rot = Rotations[index] * Quaternion.Euler(0, DeltaTime * Speed, 0);
-            transform.rotation = rot;
-            Rotations[index] = rot;
-            Progress[index] += DeltaTime;
-        }
+        var rot = Rotations[index] * Quaternion.Euler(0, DeltaTime * Speed, 0);
+        Rotations[index] = rot;
     }
 }
 
@@ -31,16 +25,13 @@ public class RotateByTriggerSystem : MonoBehaviour
     [Range(0, 360f)]
     public float Speed = 15f;
     private NativeArray<Quaternion> m_rotations;
-    private NativeArray<float> m_progress;
     private Transform[] m_cubes;
-    private TransformAccessArray m_transformAccessArray;
     private JobHandle m_jobHandle;
 
     void Start()
     {
         m_cubes = new Transform[Size * Size];
         m_rotations = new NativeArray<Quaternion>(m_cubes.Length, Allocator.Persistent);
-        m_progress = new NativeArray<float>(m_cubes.Length, Allocator.Persistent);
         for (int i = 0; i < Size; i++)
         {
             for (int j = 0; j < Size; j++)
@@ -50,16 +41,12 @@ public class RotateByTriggerSystem : MonoBehaviour
                 m_cubes[index].position = new Vector3(i * 1.1f, 0, j * 1.1f);
                 m_cubes[index].localScale = Vector3.one * 0.5f;
                 m_rotations[index] = m_cubes[index].rotation;
-                m_progress[index] = 1f;
             }
         }
-        m_transformAccessArray = new TransformAccessArray(m_cubes);
     }
 
     void OnDestroy()
     {
-        m_transformAccessArray.Dispose();
-        m_progress.Dispose();
         m_rotations.Dispose();
     }
 
@@ -70,12 +57,12 @@ public class RotateByTriggerSystem : MonoBehaviour
         var rotJob = new RotateOnceJob
         {
             Rotations = m_rotations,
-            Progress = m_progress,
             DeltaTime = Time.deltaTime,
             Speed = Speed,
         };
-        m_jobHandle = rotJob.Schedule(m_transformAccessArray, m_jobHandle);
+        m_jobHandle = rotJob.ScheduleParallel(m_cubes.Length, 1, m_jobHandle);
 
+        //The logic that can receive selected cube's index
         RaycastHit hit;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (Input.GetMouseButtonDown(0))
@@ -101,8 +88,11 @@ public class RotateByTriggerSystem : MonoBehaviour
         m_jobHandle.Complete();
         if (m_selectedCubeIndex != -1)
         {
-            m_progress[m_selectedCubeIndex] = 0f;
             m_selectedCubeIndex = -1;
+        }
+        for (int i = 0; i < m_cubes.Length; i++)
+        {
+            m_cubes[i].rotation = m_rotations[i];
         }
     }
 

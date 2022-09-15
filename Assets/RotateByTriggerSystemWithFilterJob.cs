@@ -14,20 +14,25 @@ public struct FetchNonCompeleteTargets : IJobParallelForFilter
         return Progress[index] < 1f;
     }
 }
+
 [BurstCompile]
-public struct RotateTargets : IJobParallelForTransform
+public struct RotateTargets : IJobParallelForDefer
 {
+    [ReadOnly]
+    public NativeList<int> AppendedIndexes;
+    [NativeDisableParallelForRestriction]
     public NativeArray<Quaternion> Rotations;
-    [WriteOnly]
+    [NativeDisableParallelForRestriction]
     public NativeArray<float> Progress;
     public float DeltaTime;
     public float Speed;
-    public void Execute(int index, TransformAccess transform)
+
+    public void Execute(int i)
     {
-        var rot = Rotations[index] * Quaternion.Euler(0, DeltaTime * Speed, 0);
-        transform.rotation = rot;
-        Rotations[index] = rot;
-        Progress[index] += DeltaTime;
+        var RotationIndex = AppendedIndexes[i];
+        var rot = Rotations[RotationIndex] * Quaternion.Euler(0, DeltaTime * Speed, 0);
+        Rotations[RotationIndex] = rot;
+        Progress[RotationIndex] += DeltaTime;
     }
 }
 
@@ -78,24 +83,22 @@ public class RotateByTriggerSystemWithFilterJob : MonoBehaviour
 
     void Update()
     {
-
+        m_nonCompeleteTargetIndexes = new NativeList<int>(Allocator.TempJob);
         var fetchTargetJob = new FetchNonCompeleteTargets
         {
             Progress = m_progress
         };
 
-        var rotJob = new RotateOnceJob
+        m_jobHandle = fetchTargetJob.ScheduleAppend(m_nonCompeleteTargetIndexes, m_cubes.Length, 10, m_jobHandle);
+        var rotJob = new RotateTargets
         {
+            AppendedIndexes = m_nonCompeleteTargetIndexes,
             Rotations = m_rotations,
             Progress = m_progress,
             DeltaTime = Time.deltaTime,
             Speed = Speed,
         };
-
-
-        m_nonCompeleteTargetIndexes = new NativeList<int>(Allocator.TempJob);
-        m_jobHandle = fetchTargetJob.ScheduleAppend(m_nonCompeleteTargetIndexes, m_cubes.Length, 4, m_jobHandle);
-        m_jobHandle = rotJob.Schedule(m_transformAccessArray, m_jobHandle);
+        m_jobHandle = rotJob.ScheduleByRef(m_nonCompeleteTargetIndexes, 1, m_jobHandle);
 
         RaycastHit hit;
         var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -114,17 +117,21 @@ public class RotateByTriggerSystemWithFilterJob : MonoBehaviour
                 }
             }
         }
-
     }
 
     void LateUpdate()
     {
+
         m_jobHandle.Complete();
         m_nonCompeleteTargetIndexes.Dispose();
         if (m_selectedCubeIndex != -1)
         {
             m_progress[m_selectedCubeIndex] = 0f;
             m_selectedCubeIndex = -1;
+        }
+        for (int i = 0; i < m_cubes.Length; i++)
+        {
+            m_cubes[i].rotation = m_rotations[i];
         }
     }
 

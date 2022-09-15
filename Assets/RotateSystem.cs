@@ -68,9 +68,6 @@ public class RotateSystem : MonoBehaviour
                 m_cubes[i].rotation = newRot;
             }
         }
-
-
-
     }
 
     void LateUpdate()
