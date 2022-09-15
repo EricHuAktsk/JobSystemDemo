@@ -5,6 +5,7 @@ using Unity.Burst;
 using Unity.Collections;
 using UnityEngine.Jobs;
 
+[BurstCompile]
 public struct RotateJob : IJobParallelForTransform
 {
     public NativeArray<Quaternion> Rotations;
