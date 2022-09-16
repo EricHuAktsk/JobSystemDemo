@@ -24,6 +24,8 @@ public class RotateByTriggerSystem : MonoBehaviour
     public int Size;
     [Range(0, 360f)]
     public float Speed = 15f;
+    //you may requreid a new native array ...............
+
     private NativeArray<Quaternion> m_rotations;
     private Transform[] m_cubes;
     private JobHandle m_jobHandle;
