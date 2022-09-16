@@ -11,6 +11,7 @@ public class FadeText : MonoBehaviour
     private string[] m_alphaTags;
     private float[] m_alphaProgress;
     private bool[] m_fadeIns;
+
     private int m_index;
     private TextMeshPro m_guiText;
     private float m_elapsedTime;
@@ -33,6 +34,7 @@ public class FadeText : MonoBehaviour
     void Update()
     {
         m_elapsedTime += Time.deltaTime;
+        //update each char's fadeIns statuses
         if (m_index < FullTexts.Length && m_elapsedTime > 0.5f)
         {
             m_fadeIns[m_index] = true;
@@ -40,10 +42,9 @@ public class FadeText : MonoBehaviour
             m_elapsedTime = 0f;
         }
 
+        // update all char's alpha value
         for (int i = 0; i < m_alphaTags.Length; i++)
         {
-            if (!m_fadeIns[i])
-                break;
             m_alphaProgress[i] = Mathf.Clamp(m_alphaProgress[i] + Time.deltaTime * 255f, 0, 255f);
             m_alphaTags[i] = string.Format("<alpha=#{0:X2}>", (int)m_alphaProgress[i]);
         }
